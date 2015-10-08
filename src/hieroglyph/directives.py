@@ -92,6 +92,7 @@ class NextSlideDirective(Directive):
     option_spec = {
         'increment': directives.flag,
         'classes': directives.class_option,
+        'continue_tag': directives.unchanged,
     }
 
     def run(self):
@@ -206,6 +207,9 @@ class TransformNextSlides(Transform):
         # add classes, if needed
         if node.get('classes'):
             new_section['classes'].extend(node.get('classes'))
+        
+        if node.get('continue_tag'):
+            new_section['continue_tag'] = node.get('continue_tag')
 
         # attach the section and delete the nextslide node
         grandparent.insert(insertion_point, new_section)

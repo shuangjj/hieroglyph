@@ -93,6 +93,7 @@ class SlideData(object):
             'slide_number': self.slide_number,
             'config': self._translator.builder.config,
             'id': self.id,
+            'continue_tag': self.continue_tag,
         }
 
 
@@ -141,6 +142,41 @@ class BaseSlideTranslator(HTMLTranslator):
                     self.builder.config.slide_footer,
                 ),
             )
+
+    # overwritten
+    def visit_literal_block(self, node):
+        if node.rawsource != node.astext():
+            # most probably a parsed-literal block -- don't highlight
+            return BaseTranslator.visit_literal_block(self, node)
+        lang = self.highlightlang
+        linenos = node.rawsource.count('\n') >= \
+            self.highlightlinenothreshold - 1
+        highlight_args = node.get('highlight_args', {})
+        if 'language' in node:
+            # code-block directives
+            lang = node['language']
+            highlight_args['force'] = True
+        if 'linenos' in node:
+            linenos = node['linenos']
+        if lang is self.highlightlang_base:
+            # only pass highlighter options for original language
+            opts = self.highlightopts
+        else:
+            opts = {}
+
+        def warner(msg):
+            self.builder.warn(msg, (self.builder.current_docname, node.line))
+        #highlighted = self.highlighter.highlight_block(
+            #node.rawsource, lang, opts=opts, warn=warner, linenos=linenos,
+            #**highlight_args)
+        highlighted = node.rawsource
+        #starttag = self.starttag(node, 'div', suffix='',
+                                 #CLASS='highlight-%s' % lang)
+        starttag = self.starttag(node, 'pre', suffix='', 
+                **{"CLASS": 'prettyprint', "DATA-LANG": lang})
+        #self.body.append(starttag + highlighted + '</div>\n')
+        self.body.append(starttag+highlighted+'</pre>\n')
+        raise nodes.SkipNode 
 
     def visit_slide(self, node):
 
@@ -193,6 +229,10 @@ class BaseSlideTranslator(HTMLTranslator):
                 slide_id = slide_id[0]
             else:
                 slide_id = ''
+            
+            continue_tag = node.get('continue_tag')
+            if not continue_tag:
+                continue_tag = ''
 
             assert self.current_slide is None
             self.current_slide = SlideData(
@@ -201,6 +241,7 @@ class BaseSlideTranslator(HTMLTranslator):
                 level=slide_level,
                 classes=classes,
                 slide_number=self.section_count,
+                continue_tag = continue_tag,
             )
             self.push_body()
 
